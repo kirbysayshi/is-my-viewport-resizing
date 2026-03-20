@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Is My Viewport Resizing?</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        height: 400vh;
+        font-family:
+          system-ui,
+          -apple-system,
+          sans-serif;
+      }
+      #panel {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: 2rem;
+        background: #fff;
+      }
+      h1 {
+        font-size: 0.9rem;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: #aaa;
+        margin-bottom: 2.5rem;
+      }
+      #verdict {
+        font-size: clamp(4rem, 25vw, 10rem);
+        font-weight: 900;
+        line-height: 1;
+        color: #ddd;
+        transition: color 0.2s;
+      }
+      #verdict.yes {
+        color: #e74c3c;
+      }
+      #verdict.no {
+        color: #27ae60;
+      }
+      #sub {
+        margin-top: 1.5rem;
+        font-size: 0.95rem;
+        color: #bbb;
+        min-height: 1.4em;
+      }
+      #metrics {
+        display: none;
+        margin-top: 2rem;
+        font-size: 0.8rem;
+        font-family: ui-monospace, monospace;
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        gap: 0.25rem 1.25rem;
+        text-align: left;
+        width: 100%;
+        max-width: 28rem;
+      }
+      #metrics.visible {
+        display: grid;
+      }
+      .m-label {
+        color: #aaa;
+        overflow-wrap: break-word;
+      }
+      .m-val {
+        color: #bbb;
+        white-space: nowrap;
+      }
+      .changed {
+        color: #e74c3c;
+      }
+      .stable {
+        color: #27ae60;
+      }
+      .unsupported {
+        color: #ddd;
+      }
+      .vp-probe {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 0;
+        pointer-events: none;
+        visibility: hidden;
+      }
+      #hint {
+        position: absolute;
+        bottom: 2.5rem;
+        font-size: 1.5rem;
+        color: #ddd;
+        animation: bob 1.5s ease-in-out infinite;
+      }
+      @keyframes bob {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(8px);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="panel">
+      <h1>Is My Viewport Resizing?</h1>
+      <div id="verdict">?</div>
+      <div id="sub">scroll down to find out</div>
+      <div id="metrics"></div>
+      <div id="hint">↓</div>
+    </div>
+    <script>
+      // Each CSS unit gets a fixed probe div; window.innerHeight is measured directly.
+      const unitDefs = [
+        {
+          label: "window.innerHeight",
+          getH: () => window.innerHeight,
+          initial: 0,
+        },
+        {
+          label: "document.documentElement.clientHeight",
+          getH: () => document.documentElement.clientHeight,
+          initial: 0,
+        },
+        { label: "100vh", cssH: "100vh", initial: 0 },
+        { label: "100svh", cssH: "100svh", initial: 0 },
+        { label: "100lvh", cssH: "100lvh", initial: 0 },
+        { label: "100dvh", cssH: "100dvh", initial: 0 },
+      ];
+
+      unitDefs.forEach((u) => {
+        if (!u.cssH) {
+          u.initial = u.getH();
+          return;
+        }
+        u.supported = CSS.supports("height", u.cssH);
+        if (u.supported) {
+          const el = document.createElement("div");
+          el.className = "vp-probe";
+          el.style.height = u.cssH;
+          document.body.appendChild(el);
+          u.getH = () => el.getBoundingClientRect().height;
+        }
+        u.initial = u.supported ? u.getH() : null;
+      });
+
+      // Build metric rows
+      const metricsEl = document.getElementById("metrics");
+      unitDefs.forEach((u) => {
+        const label = document.createElement("span");
+        label.className = "m-label";
+        label.textContent = u.label;
+        u.valEl = document.createElement("span");
+        u.valEl.className = "m-val";
+        u.noteEl = document.createElement("span");
+        metricsEl.append(label, u.valEl, u.noteEl);
+      });
+
+      const verdict = document.getElementById("verdict");
+      const sub = document.getElementById("sub");
+      const hint = document.getElementById("hint");
+      const initialH = unitDefs[0].initial;
+      let done = false;
+
+      function fmt(px) {
+        return Math.round(px) + "px";
+      }
+
+      function showMetrics() {
+        unitDefs.forEach((u) => {
+          if (!u.supported && u.cssH) {
+            u.valEl.textContent = "—";
+            u.noteEl.textContent = "(unsupported)";
+            u.noteEl.className = "unsupported";
+            return;
+          }
+          const cur = u.getH();
+          const diff = cur - u.initial;
+          u.valEl.textContent =
+            Math.abs(diff) > 2 ? `${fmt(u.initial)} → ${fmt(cur)}` : fmt(cur);
+          u.noteEl.textContent =
+            Math.abs(diff) > 2
+              ? `(${diff > 0 ? "+" : ""}${Math.round(diff)}px)`
+              : "(unchanged)";
+          u.noteEl.className = Math.abs(diff) > 2 ? "changed" : "stable";
+        });
+        metricsEl.className = "visible";
+      }
+
+      function tick() {
+        if (done) return;
+        const diff = window.innerHeight - initialH;
+        if (window.scrollY > 0 && Math.abs(diff) > 2) {
+          done = true;
+          verdict.textContent = "YES";
+          verdict.className = "yes";
+          sub.textContent = `${diff > 0 ? "+" : ""}${diff}px.`;
+          hint.style.display = "none";
+          showMetrics();
+          return;
+        }
+        if (window.scrollY > initialH * 0.8) {
+          done = true;
+          verdict.textContent = "NO";
+          verdict.className = "no";
+          sub.textContent = `${window.innerHeight}px.`;
+          hint.style.display = "none";
+          showMetrics();
+          return;
+        }
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    </script>
+  </body>
+</html>
