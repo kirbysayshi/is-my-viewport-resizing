@@ -13,7 +13,7 @@ See:
 Examples where this is very obvious when scrolling:
 
 - https://www.nytimes.com/interactive/2026/01/20/opinion/editorials/trump-wealth-crypto-graft.html
-- <video src="images/ScreenRecording_03-20-2026%2019-07-39_1.mp4" controls playsinline muted height="450"></video>
+- [Screen recording: Firefox iOS viewport jumping while scrolling NYT article](images/ScreenRecording_03-20-2026%2019-07-39_1.mp4)
 
 ## Results (iOS 18.1, March 20 2026)
 
