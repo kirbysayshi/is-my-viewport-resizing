@@ -1,0 +1,12 @@
+{
+  "name": "is-my-viewport-resizing",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite",
+    "deploy": "gh-pages -d . --src index.html"
+  },
+  "devDependencies": {
+    "gh-pages": "^6.3.0",
+    "vite": "^6.0.0"
+  }
+}
